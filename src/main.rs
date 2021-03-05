@@ -30,15 +30,9 @@ pub mod server;
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let args: Vec<String> = ::std::env::args().collect();
-    if args.len() >= 2 {
-        match &args[1][..] {
-            "client" => return client::main().await,
-            "server" => return server::main().await,
-            _ => ()
-        }
-    }
+    let local = tokio::task::LocalSet::new();
+    local.run_until(server::main()).await?;
+    local.run_until(client::main()).await?;
 
-    println!("usage: {} [client | server] ADDRESS", args[0]);
     Ok(())
 }
