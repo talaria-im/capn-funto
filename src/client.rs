@@ -21,30 +21,21 @@
 
 use crate::hello_world_capnp::hello_world;
 use capnp_rpc::{rpc_twoparty_capnp, twoparty, RpcSystem};
-use std::net::ToSocketAddrs;
 
 use futures::AsyncReadExt;
 
 use futures::FutureExt;
 
-pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
+pub async fn main(pipe: tokio::io::DuplexStream) -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = ::std::env::args().collect();
-    if args.len() != 4 {
-        println!("usage: {} client HOST:PORT MESSAGE", args[0]);
+    if args.len() != 2 {
+        println!("usage: {} MESSAGE", args[0]);
         return Ok(());
     }
 
-    let addr = args[2]
-        .to_socket_addrs()
-        .unwrap()
-        .next()
-        .expect("could not parse address");
+    let msg = args[1].to_string();
 
-    let msg = args[3].to_string();
-
-    let stream = tokio::net::TcpStream::connect(&addr).await?;
-    stream.set_nodelay(true)?;
-    let (reader, writer) = tokio_util::compat::TokioAsyncReadCompatExt::compat(stream).split();
+    let (reader, writer) = tokio_util::compat::TokioAsyncReadCompatExt::compat(pipe).split();
     let rpc_network = Box::new(twoparty::VatNetwork::new(
         reader,
         writer,

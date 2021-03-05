@@ -31,8 +31,8 @@ pub mod server;
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let local = tokio::task::LocalSet::new();
-    local.run_until(server::main()).await?;
-    local.run_until(client::main()).await?;
+    let pipe = local.run_until(server::main()).await;
+    local.run_until(client::main(pipe)).await?;
 
     Ok(())
 }

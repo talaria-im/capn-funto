@@ -25,7 +25,6 @@ use capnp_rpc::{rpc_twoparty_capnp, twoparty, RpcSystem};
 use crate::hello_world_capnp::hello_world;
 
 use futures::{AsyncReadExt, FutureExt};
-use std::net::ToSocketAddrs;
 
 struct HelloWorldImpl;
 
@@ -47,40 +46,19 @@ impl hello_world::Server for HelloWorldImpl {
     }
 }
 
-pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let args: Vec<String> = ::std::env::args().collect();
-    if args.len() != 4 {
-        println!("usage: {} server ADDRESS[:PORT]", args[0]);
-        return Ok(());
-    }
-
-    let addr = args[2]
-        .to_socket_addrs()
-        .unwrap()
-        .next()
-        .expect("could not parse address");
-
-    let listener = tokio::net::TcpListener::bind(&addr).await?;
+pub async fn main() -> tokio::io::DuplexStream {
+    let (client, server) = tokio::io::duplex(1024);
     let hello_world_client: hello_world::Client = capnp_rpc::new_client(HelloWorldImpl);
 
-    tokio::task::spawn_local(async move {
-        loop {
-            let (stream, _) = listener.accept().await.unwrap();
-            stream.set_nodelay(true).unwrap();
-            let (reader, writer) = tokio_util::compat::TokioAsyncReadCompatExt::compat(stream).split();
-            let network = twoparty::VatNetwork::new(
-                reader,
-                writer,
-                rpc_twoparty_capnp::Side::Server,
-                Default::default(),
-            );
+    let (reader, writer) = tokio_util::compat::TokioAsyncReadCompatExt::compat(server).split();
+    let network = twoparty::VatNetwork::new(
+        reader,
+        writer,
+        rpc_twoparty_capnp::Side::Server,
+        Default::default(),
+    );
+    let rpc_system = RpcSystem::new(Box::new(network), Some(hello_world_client.clone().client));
+    tokio::task::spawn_local(Box::pin(rpc_system.map(|_| ())));
 
-            let rpc_system =
-                RpcSystem::new(Box::new(network), Some(hello_world_client.clone().client));
-
-            tokio::task::spawn_local(Box::pin(rpc_system.map(|_| ())));
-        }
-    });
-
-    Ok(())
+    client
 }
