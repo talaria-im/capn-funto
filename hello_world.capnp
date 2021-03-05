@@ -10,4 +10,9 @@ interface HelloWorld {
     }
 
     sayHello @0 (request: HelloRequest) -> (reply: HelloReply);
+    newFoobar @1 (name: Text) -> (obj: Foobar);
+}
+
+interface Foobar {
+    whoAmI @0 () -> (reply: Text);
 }

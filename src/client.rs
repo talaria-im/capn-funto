@@ -42,6 +42,32 @@ pub async fn main(pipe: tokio::io::DuplexStream) -> Result<(), Box<dyn std::erro
 
     let stdin = std::io::stdin();
 
+    {
+        let foo = {
+            let mut request = hello_world.new_foobar_request();
+            request.get().set_name("foo ducks");
+            request.send().promise.await.unwrap().get().unwrap().get_obj().unwrap()
+        };
+
+        let bar = {
+            let mut request = hello_world.new_foobar_request();
+            request.get().set_name("bar ducks");
+            request.send().promise.await.unwrap().get().unwrap().get_obj().unwrap()
+        };
+
+        let whos_foo = {
+            let request = foo.who_am_i_request();
+            request.send().promise.await.unwrap()
+        };
+        println!("foo's name is {}", whos_foo.get().unwrap().get_reply().unwrap());
+
+        let whos_bar = {
+            let request = bar.who_am_i_request();
+            request.send().promise.await.unwrap()
+        };
+        println!("bar's name is {}", whos_bar.get().unwrap().get_reply().unwrap());
+    }
+
     loop {
         let mut msg = String::new();
         stdin.read_line(&mut msg)?;

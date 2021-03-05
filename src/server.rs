@@ -22,11 +22,15 @@
 use capnp::capability::Promise;
 use capnp_rpc::{rpc_twoparty_capnp, twoparty, RpcSystem};
 
-use crate::hello_world_capnp::hello_world;
+use crate::hello_world_capnp::{hello_world, foobar};
 
 use futures::{AsyncReadExt, FutureExt};
 
 struct HelloWorldImpl;
+
+struct FoobarImpl {
+    name: String,
+}
 
 impl hello_world::Server for HelloWorldImpl {
     fn say_hello(
@@ -43,6 +47,36 @@ impl hello_world::Server for HelloWorldImpl {
         results.get().init_reply().set_message(&message);
 
         Promise::ok(())
+    }
+
+    fn new_foobar(
+        &mut self,
+        params: hello_world::NewFoobarParams,
+        mut results: hello_world::NewFoobarResults,
+    ) -> Promise<(), ::capnp::Error> {
+        let name = params.get().unwrap().get_name().unwrap();
+        let client: foobar::Client = capnp_rpc::new_client(FoobarImpl {
+            name: name.into(),
+        });
+        results.get().set_obj(client);
+        Promise::ok(())
+    }
+}
+
+impl foobar::Server for FoobarImpl {
+    fn who_am_i(
+        &mut self,
+        _params: foobar::WhoAmIParams,
+        mut results: foobar::WhoAmIResults,
+    ) -> Promise<(), ::capnp::Error> {
+        results.get().set_reply(&self.name);
+        Promise::ok(())
+    }
+}
+
+impl Drop for FoobarImpl {
+    fn drop(&mut self) {
+        println!("goodbye {}", self.name);
     }
 }
 
