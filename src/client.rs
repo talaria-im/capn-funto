@@ -27,14 +27,6 @@ use futures::AsyncReadExt;
 use futures::FutureExt;
 
 pub async fn main(pipe: tokio::io::DuplexStream) -> Result<(), Box<dyn std::error::Error>> {
-    let args: Vec<String> = ::std::env::args().collect();
-    if args.len() != 2 {
-        println!("usage: {} MESSAGE", args[0]);
-        return Ok(());
-    }
-
-    let msg = args[1].to_string();
-
     let (reader, writer) = tokio_util::compat::TokioAsyncReadCompatExt::compat(pipe).split();
     let rpc_network = Box::new(twoparty::VatNetwork::new(
         reader,
@@ -48,20 +40,25 @@ pub async fn main(pipe: tokio::io::DuplexStream) -> Result<(), Box<dyn std::erro
 
     tokio::task::spawn_local(Box::pin(rpc_system.map(|_| ())));
 
-    let mut request = hello_world.say_hello_request();
-    request.get().init_request().set_name(&msg);
+    let stdin = std::io::stdin();
 
-    let reply = request.send().promise.await.unwrap();
+    loop {
+        let mut msg = String::new();
+        stdin.read_line(&mut msg)?;
+        let mut request = hello_world.say_hello_request();
+        request.get().init_request().set_name(msg.trim());
 
-    println!(
-        "received: {}",
-        reply
-            .get()
-            .unwrap()
-            .get_reply()
-            .unwrap()
-            .get_message()
-            .unwrap()
-    );
-    Ok(())
+        let reply = request.send().promise.await.unwrap();
+
+        println!(
+            "received: {}",
+            reply
+                .get()
+                .unwrap()
+                .get_reply()
+                .unwrap()
+                .get_message()
+                .unwrap()
+        );
+    }
 }

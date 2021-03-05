@@ -38,7 +38,7 @@ impl hello_world::Server for HelloWorldImpl {
         let request = params.get().unwrap().get_request().unwrap();
         let name = request.get_name().unwrap();
         let message = format!("Hello, {}!", name);
-        println!("{}", message);
+        println!("server: {}", message);
 
         results.get().init_reply().set_message(&message);
 
